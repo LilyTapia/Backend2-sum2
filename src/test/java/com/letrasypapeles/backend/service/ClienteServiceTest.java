@@ -16,6 +16,7 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -192,4 +193,49 @@ public class ClienteServiceTest {
         // Then
         verify(clienteRepository, times(1)).deleteById(idToDelete);
     }
+
+    @Test
+void testEliminarCliente() {
+    Long clienteId = 1L;
+
+    // No importa si existe o no, solo verificamos que se llame deleteById
+    doNothing().when(clienteRepository).deleteById(clienteId);
+
+    clienteService.eliminar(clienteId);
+
+    verify(clienteRepository, times(1)).deleteById(clienteId);
+}
+@Test
+void testRegistrarClienteYaRegistrado() {
+    Cliente cliente = new Cliente();
+    cliente.setEmail("ya@existe.com");
+
+    when(clienteRepository.existsByEmail(cliente.getEmail())).thenReturn(true);
+
+    assertThrows(RuntimeException.class, () -> clienteService.registrarCliente(cliente));
+}
+@Test
+void registrarClienteSinRolExistente() {
+    String rawPassword = "password123";
+    String encodedPassword = "encoded_password";
+
+    when(clienteRepository.existsByEmail(anyString())).thenReturn(false);
+    when(passwordEncoder.encode(rawPassword)).thenReturn(encodedPassword);
+    when(roleRepository.findByNombre("CLIENTE")).thenReturn(Optional.empty());
+    when(clienteRepository.save(any(Cliente.class))).thenReturn(cliente);
+
+    Cliente clienteInput = Cliente.builder()
+            .nombre("Test")
+            .apellido("Usuario")
+            .email("nuevo@cliente.com")
+            .contraseña(rawPassword)
+            .build();
+
+    Cliente result = clienteService.registrarCliente(clienteInput);
+
+    assertNotNull(result);
+    verify(roleRepository, times(1)).findByNombre("CLIENTE");
+    verify(clienteRepository, times(1)).save(any(Cliente.class));
+}
+
 }
